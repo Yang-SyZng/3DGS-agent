@@ -1,6 +1,5 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
 
 class Settings(BaseSettings):
 
@@ -11,25 +10,26 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    LLM_API_KEY: str = model_config.get("LLM_API_KEY") or None
-    LLM_BASE_URL: str = model_config.get("LLM_BASE_URL") or None
+    LLM_API_KEY: str | None = None
+    LLM_BASE_URL: str | None = None
 
     # model config
-    LLM_MODEL_ID: str = model_config.get("LLM_MODEL_ID") or None
-
+    LLM_MODEL_ID: str | None = None
     EMBEDDING_MODEL_ID: str = ""
-
+    OCR_MODEL_ID: str | None = None
 
     # DATA save config
-    _mainly_save_dir: str = "./database"
+    mainly_save_dir: Path = Path("./database")
 
     # ChromaDB config
-    chroma_save_dir: str = os.path.join(_mainly_save_dir, "Chroma")
+    chroma_save_dir: Path = Path("./database/Chroma")
     chroma_collection_name: str = "arxiv_papers"
     
     # pdf save config
-    pdf_save_dir: str = os.path.join(_mainly_save_dir, "Papers")
+    pdf_save_dir: Path = Path("./database/Papers")
 
+    # pdf process save config
+    pdf_process_save_dir: Path = Path("./database/pdf_ocr_results")
 
     # rag config
     chunk_size: int = 3000
@@ -51,21 +51,12 @@ class Settings(BaseSettings):
     max_retries: int = 3
 
 
-    @property
-    def chroma(self) -> Path:
-        return Path(self.chroma_save_dir)
-
-
-    @property
-    def pdf(self) -> Path:
-        return Path(self.pdf_save_dir)
-
-
     def __init__(self):
         super().__init__()
-        self.chroma.mkdir(parents=True, exist_ok=True)
-        self.pdf.mkdir(parents=True, exist_ok=True)
-        Path(os.path.join(self._mainly_save_dir, "Cache")).mkdir(parents=True, exist_ok=True)
+        self.chroma_save_dir.mkdir(parents=True, exist_ok=True)
+        self.pdf_save_dir.mkdir(parents=True, exist_ok=True)
+        self.pdf_process_save_dir.mkdir(parents=True, exist_ok=True)
+        (self.mainly_save_dir / "Cache").mkdir(parents=True, exist_ok=True)
 
 setting = Settings()
 
