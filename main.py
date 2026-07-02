@@ -9,7 +9,7 @@ from agents import build_agent
 import logging
 
 logging.basicConfig(
-    filename="app.log",
+    filename="y.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
