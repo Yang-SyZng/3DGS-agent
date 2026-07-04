@@ -2,7 +2,6 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -12,6 +11,13 @@ class Settings(BaseSettings):
 
     LLM_API_KEY: str | None = None
     LLM_BASE_URL: str | None = None
+
+    ZoteroID: str | None = None
+    ZoteroKeys: str | None = None
+
+    WEBDAV_HOSTNAME: str | None = None
+    WEBDAV_LOGIN: str | None = None
+    WEBDAV_PASSWD: str | None = None
 
     # model config
     LLM_MODEL_ID: str | None = None
