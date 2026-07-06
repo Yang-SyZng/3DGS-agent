@@ -22,268 +22,41 @@ class PDFProcess:
     def __init__(self):
         logger.info("正在初始化PDF Process...")
 
-    @property
-    def process(self):
-        pass
-
-    def extract_pdf_stats(self,
-        file_path: str | Path,
-    ) -> dict[str, Any]:
+    def extract_text(pdf_path: str | Path) -> Optional[str]:
         """
-        统计 PDF 内容特征，适用于工具调用。
+        适用于纯文本PDF
 
-        功能:
-            1. 计算原生文本量
-            2. 估算图片区域占比
-            3. 统计文本块和图片块数量
-            4. 判断是否包含可提取文本
+        Args:
+            pdf_path: PDF文件路径
 
-        参数:
-            file_path: PDF 文件路径。
-
-        返回:
-            dict，包含 file_path、page_count、pages、avg_text_length、
-            avg_image_ratio、avg_text_block_count、avg_image_block_count、
-            has_extractable_text、page_stats 等统计信息。
+        Returns:
+            提取的文本内容
         """
-        file_path = Path(file_path).expanduser().resolve()
+        pdf_path = Path(pdf_path)
 
-        if not file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {file_path}")
+        if not pdf_path.exists():
+            logger.error(f"PDF文件不存在: {pdf_path}")
+            return None
 
-        if file_path.suffix.lower() != ".pdf":
-            raise ValueError(f"当前只支持 PDF 文件: {file_path}")
+        logger.info(f"提取PDF文本: {pdf_path.name}")
 
-        page_stats = []
+        try:
+            doc = fitz.open(pdf_path)
+            full_text = ""
 
-        with fitz.open(file_path) as doc:
-            page_count = doc.page_count
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text = page.get_text()
+                full_text += text
 
-            for page_index in range(page_count):
-                page = doc.load_page(page_index)
+            doc.close()
 
-                page_width = page.rect.width
-                page_height = page.rect.height
-                page_area = page_width * page_height
+            logger.info(f"成功提取文本，长度: {len(full_text)} 字符")
+            return full_text
 
-                # 1. 提取原生文本
-                text = page.get_text("text") or ""
-                clean_text = "".join(text.split())
-                text_length = len(clean_text)
-
-                # 2. 分析页面 block，包括 text block / image block
-                page_dict = page.get_text("dict")
-                blocks = page_dict.get("blocks", [])
-
-                text_block_count = 0
-                image_block_count = 0
-                image_area = 0.0
-
-                for block in blocks:
-                    block_type = block.get("type")
-
-                    # type == 0: 文本块
-                    if block_type == 0:
-                        text_block_count += 1
-
-                    # type == 1: 图片块
-                    elif block_type == 1:
-                        image_block_count += 1
-
-                        bbox = block.get("bbox")
-                        if bbox:
-                            x0, y0, x1, y1 = bbox
-                            width = max(0, x1 - x0)
-                            height = max(0, y1 - y0)
-                            image_area += width * height
-
-                # 防止多个图片块重叠导致面积超过整页
-                if page_area > 0:
-                    image_area_ratio = min(image_area / page_area, 1.0)
-                else:
-                    image_area_ratio = 0.0
-
-                page_stats.append(
-                    {
-                        "page_index": page_index,
-                        "page_number": page_index + 1,
-                        "text_length": text_length,
-                        "image_area_ratio": round(image_area_ratio, 4),
-                        "text_block_count": text_block_count,
-                        "image_block_count": image_block_count,
-                        "page_width": round(page_width, 2),
-                        "page_height": round(page_height, 2),
-                    }
-                )
-
-        pages = len(page_stats)
-
-        if pages == 0:
-            return {
-                "file_path": str(file_path),
-                "page_count": 0,
-                "pages": 0,
-                "avg_text_length": 0,
-                "avg_image_ratio": 0.0,
-                "avg_text_block_count": 0.0,
-                "avg_image_block_count": 0.0,
-                "has_extractable_text": False,
-                "page_stats": [],
-            }
-
-        avg_text_length = sum(p["text_length"] for p in page_stats) / pages
-        avg_image_ratio = sum(p["image_area_ratio"] for p in page_stats) / pages
-        avg_text_block_count = sum(p["text_block_count"] for p in page_stats) / pages
-        avg_image_block_count = sum(p["image_block_count"] for p in page_stats) / pages
-
-        return {
-            "file_path": str(file_path),
-            "page_count": page_count,
-            "avg_text_length": round(avg_text_length, 2),
-            "avg_image_ratio": round(avg_image_ratio, 4),
-            "avg_text_block_count": round(avg_text_block_count, 2),
-            "avg_image_block_count": round(avg_image_block_count, 2),
-            "has_extractable_text": avg_text_length > 30,
-            "page_stats": page_stats,
-        }
-    
-    def detect_layout_blocks(self, 
-        file_path: str | Path,
-    ) -> dict[str, Any]:
-        """
-        检测 PDF 页面中的版面元素，适用于工具调用。
-
-        功能:
-            1. 检测文本块和图片块
-            2. 检测表格、标题、图注、页眉、页脚、公式等布局元素
-            3. 返回每页块类型与整体布局标签
-
-        参数:
-            file_path: PDF 文件路径。
-
-        返回:
-            dict，包含 file_path、layout_blocks、has_text、has_image、
-            has_table、has_caption、has_equation、has_header_footer、page_results。
-        """
-        file_path = Path(file_path).expanduser().resolve()
-
-        if not file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {file_path}")
-
-        if file_path.suffix.lower() != ".pdf":
-            raise ValueError(f"当前只支持 PDF 文件: {file_path}")
-
-        layout_blocks = []
-        page_results = []
-
-        with fitz.open(file_path) as doc:
-            page_count = doc.page_count
-
-            for page_index in range(page_count):
-                page = doc.load_page(page_index)
-                page_height = page.rect.height
-
-                blocks = page.get_text("dict").get("blocks", [])
-                page_block_types = []
-
-                table_count = 0
-                try:
-                    tables = page.find_tables()
-                    table_count = len(tables.tables)
-                    if table_count > 0:
-                        page_block_types.append("table")
-                        layout_blocks.append("table")
-                except Exception:
-                    table_count = 0
-
-                for block in blocks:
-                    block_type = block.get("type")
-                    bbox = block.get("bbox", [])
-                    text = ""
-
-                    # type == 0 是文本块
-                    if block_type == 0:
-                        for line in block.get("lines", []):
-                            for span in line.get("spans", []):
-                                text += span.get("text", "")
-
-                        text = text.strip()
-
-                        if not text:
-                            continue
-
-                        page_block_types.append("text")
-                        layout_blocks.append("text")
-
-                        y0 = bbox[1] if len(bbox) == 4 else 0
-                        y1 = bbox[3] if len(bbox) == 4 else 0
-
-                        # 页眉
-                        if y1 < page_height * 0.08:
-                            page_block_types.append("header")
-                            layout_blocks.append("header")
-
-                        # 页脚
-                        if y0 > page_height * 0.90:
-                            page_block_types.append("footer")
-                            layout_blocks.append("footer")
-
-                        # 图注/表注
-                        lower_text = text.lower()
-                        if (
-                            lower_text.startswith("fig.")
-                            or lower_text.startswith("figure")
-                            or lower_text.startswith("table")
-                            or text.startswith("图")
-                            or text.startswith("表")
-                        ):
-                            page_block_types.append("caption")
-                            layout_blocks.append("caption")
-
-                        # 标题：用字体大小判断
-                        max_font_size = 0
-                        for line in block.get("lines", []):
-                            for span in line.get("spans", []):
-                                max_font_size = max(
-                                    max_font_size,
-                                    span.get("size", 0)
-                                )
-
-                        if page_index == 0 and max_font_size >= 14:
-                            page_block_types.append("title")
-                            layout_blocks.append("title")
-
-                        # 公式规则判断
-                        if any(symbol in text for symbol in ["=", "∑", "∫", "√", "\\", "α", "β", "λ"]):
-                            page_block_types.append("equation")
-                            layout_blocks.append("equation")
-
-                    # type == 1 是图片块
-                    elif block_type == 1:
-                        page_block_types.append("image")
-                        layout_blocks.append("image")
-
-                page_results.append(
-                    {
-                        "page_number": page_index + 1,
-                        "block_types": sorted(set(page_block_types)),
-                        "table_count": table_count,
-                    }
-                )
-
-        unique_blocks = sorted(set(layout_blocks))
-
-        return {
-            "file_path": str(file_path),
-            "layout_blocks": unique_blocks,
-            "has_text": "text" in unique_blocks,
-            "has_image": "image" in unique_blocks,
-            "has_table": "table" in unique_blocks,
-            "has_caption": "caption" in unique_blocks,
-            "has_equation": "equation" in unique_blocks,
-            "has_header_footer": "header" in unique_blocks or "footer" in unique_blocks,
-            "page_results": page_results,
-        }
+        except Exception as e:
+            logger.error(f"PDF文本提取失败: {str(e)}")
+            return None
         
 
 class PDFProcess_OCR:
@@ -376,45 +149,29 @@ def pdf_to_images(self, pdf_path: str, dpi: int = 300):
     doc.close()
     return paths
 
-def extract_text(self, pdf_path: str | Path) -> Optional[str]:
-    """
-    适用于原生文本
-
-    Args:
-        pdf_path: PDF文件路径
-
-    Returns:
-        提取的文本内容
-    """
-    pdf_path = Path(pdf_path)
-
-    if not pdf_path.exists():
-        logger.error(f"PDF文件不存在: {pdf_path}")
-        return None
-
-    logger.info(f"提取PDF文本: {pdf_path.name}")
-
-    try:
-        doc = fitz.open(pdf_path)
-        full_text = ""
-
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            text = page.get_text()
-            full_text += text
-
-        doc.close()
-
-        logger.info(f"成功提取文本，长度: {len(full_text)} 字符")
-        return full_text
-
-    except Exception as e:
-        logger.error(f"PDF文本提取失败: {str(e)}")
-        return None
         
 pdf_process = PDFProcess()
 
-PDFProcessTools = [
-    StructuredTool.from_function(pdf_process.extract_pdf_stats),
-    StructuredTool.from_function(pdf_process.detect_layout_blocks)
-]
+_pdf_process = None
+
+
+def get_PDFProcess() -> PDFProcess:
+    global _pdf_process
+
+    if _pdf_process is None:
+        _pdf_process = PDFProcess()
+
+    return _pdf_process
+
+
+class LazyPDFProcess:
+    def __getattr__(self, name):
+        return getattr(get_PDFProcess(), name)
+
+
+embedding = LazyPDFProcess()
+
+# PDFProcessTools = [
+#     StructuredTool.from_function(pdf_process.extract_pdf_stats),
+#     StructuredTool.from_function(pdf_process.detect_layout_blocks)
+# ]

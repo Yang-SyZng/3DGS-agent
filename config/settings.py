@@ -9,8 +9,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    LLM_API_KEY: str | None = None
-    LLM_BASE_URL: str | None = None
+    API_KEY: str | None = None
+    BASE_URL: str | None = None
 
     ZoteroID: str | None = None
     ZoteroKeys: str | None = None
@@ -21,15 +21,17 @@ class Settings(BaseSettings):
 
     # model config
     LLM_MODEL_ID: str | None = None
-    EMBEDDING_MODEL_ID: str = ""
+    EMBEDDING_MODEL_ID: str | None = None
+    EMBEDDING_DIM: int | None = None
     OCR_MODEL_ID: str | None = None
 
     # DATA save config
     mainly_save_dir: Path = Path("./database")
 
-    # ChromaDB config
-    chroma_save_dir: Path = Path("./database/Chroma")
-    chroma_collection_name: str = "arxiv_papers"
+    # Milvus config
+    Milvus_directory: Path = Path("./database/Milvus")
+    Milvus_db_directory: Path = Milvus_directory / "database.db"
+    Milvus_collection_name: str = "arxiv_papers"
     
     # pdf save config
     pdf_save_dir: Path = Path("./database/Papers")
@@ -38,8 +40,8 @@ class Settings(BaseSettings):
     pdf_process_save_dir: Path = Path("./database/pdf_ocr_results")
 
     # rag config
-    chunk_size: int = 3000
-    chunk_overlap: int = 500
+    chunk_size: int = 400
+    chunk_overlap: int = 50
 
 
     # api config
@@ -59,7 +61,7 @@ class Settings(BaseSettings):
 
     def __init__(self):
         super().__init__()
-        self.chroma_save_dir.mkdir(parents=True, exist_ok=True)
+        self.Milvus_directory.mkdir(parents=True, exist_ok=True)
         self.pdf_save_dir.mkdir(parents=True, exist_ok=True)
         self.pdf_process_save_dir.mkdir(parents=True, exist_ok=True)
         (self.mainly_save_dir / "Cache").mkdir(parents=True, exist_ok=True)
