@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
@@ -12,7 +13,7 @@ from webdav3.client import Client
 
 from config import setting
 
-from langchain_core.tools import StructuredTool
+from .lazy import LazyToolList
 
 logger = logging.getLogger(__name__)
 
@@ -318,12 +319,85 @@ class ZoteroClient:
             raise RuntimeError(f"下载或校验失败: {e}")
 
 
-zoteroclient = ZoteroClient()
-ZoteroClientTools = [
-    StructuredTool.from_function(zoteroclient.SearchOnParentTitle),
-    StructuredTool.from_function(zoteroclient.GetParentsChildrenMetadatas),
-    StructuredTool.from_function(zoteroclient.GetChildrenAttachment)
-]
+_zoteroclient: ZoteroClient | None = None
+_zotero_client_tools: list[Callable[..., Any]] | None = None
+
+
+def get_ZoteroClient() -> ZoteroClient:
+    global _zoteroclient
+
+    if _zoteroclient is None:
+        _zoteroclient = ZoteroClient()
+
+    return _zoteroclient
+
+
+class LazyZoteroClient:
+    def SearchOnParentTitle(
+        self,
+        title: str,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        return get_ZoteroClient().SearchOnParentTitle(title=title, limit=limit)
+
+    def GetParentMetadata(
+        self,
+        ParentKey: str | int,
+    ) -> dict[str, Any]:
+        return get_ZoteroClient().GetParentMetadata(ParentKey=ParentKey)
+
+    def GetParentsChildrenMetadatas(
+        self,
+        ParentKey: str | int,
+    ) -> list[dict[str, Any]]:
+        return get_ZoteroClient().GetParentsChildrenMetadatas(ParentKey=ParentKey)
+
+    def GetChildrenMetadata(
+        self,
+        ChildrenKey: str | int,
+    ) -> dict[str, Any]:
+        return get_ZoteroClient().GetChildrenMetadata(ChildrenKey=ChildrenKey)
+
+    def VerifyChildrenAttachmentIntegrity(
+        self,
+        zip_path: str | Path,
+        prop_path: str | Path,
+    ) -> bool:
+        return get_ZoteroClient().VerifyChildrenAttachmentIntegrity(
+            zip_path=zip_path,
+            prop_path=prop_path,
+        )
+
+    def GetChildrenAttachment(
+        self,
+        ChildrenKey: str | int,
+        FilePath: str | Path,
+    ) -> dict[str, Path]:
+        return get_ZoteroClient().GetChildrenAttachment(
+            ChildrenKey=ChildrenKey,
+            FilePath=FilePath,
+        )
+
+    def __getattr__(self, name: str):
+        return getattr(get_ZoteroClient(), name)
+
+
+def get_ZoteroClientTools() -> list[Callable[..., Any]]:
+    global _zotero_client_tools
+
+    if _zotero_client_tools is None:
+        client = get_ZoteroClient()
+        _zotero_client_tools = [
+            client.SearchOnParentTitle,
+            client.GetParentsChildrenMetadatas,
+            client.GetChildrenAttachment,
+        ]
+
+    return _zotero_client_tools
+
+
+zoteroclient = LazyZoteroClient()
+ZoteroClientTools = LazyToolList(get_ZoteroClientTools)
 
 
 if __name__ == "__main__":

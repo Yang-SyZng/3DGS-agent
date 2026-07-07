@@ -4,10 +4,12 @@ import logging
 import re
 import urllib.request
 from pathlib import Path
+from collections.abc import Callable
+from typing import Any
 from typing import List, Dict, Optional
 from functools import wraps
 from config import setting
-from langchain_core.tools import StructuredTool
+from .lazy import LazyToolList
 
 logger = logging.getLogger(__name__)
 
@@ -320,10 +322,74 @@ class ArxivQuery:
             return [item.strip() for item in ids.split(",") if item.strip()]
         return [item.strip() for item in ids if item.strip()]
 
-query = ArxivQuery()
+_query: ArxivQuery | None = None
+_arxiv_query_tools: list[Callable[..., Any]] | None = None
 
-ArxivQueryTools = [
-    StructuredTool.from_function(query.search_papers),
-    StructuredTool.from_function(query.download_pdf),
-    StructuredTool.from_function(query.get_paper_metadata)
-]
+
+def get_ArxivQuery() -> ArxivQuery:
+    global _query
+
+    if _query is None:
+        _query = ArxivQuery()
+
+    return _query
+
+
+class LazyArxivQuery:
+    def search_papers(
+        self,
+        query: Optional[str] = None,
+        *,
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        abstract: Optional[str] = None,
+        category: Optional[str] = None,
+        ids: Optional[List[str] | tuple[str, ...] | str] = None,
+        start: int = 0,
+        max_results: int = 10,
+        sort_by: arxiv.SortCriterion = arxiv.SortCriterion.Relevance,
+        sort_order: arxiv.SortOrder = arxiv.SortOrder.Descending,
+    ) -> List[Dict]:
+        return get_ArxivQuery().search_papers(
+            query=query,
+            title=title,
+            author=author,
+            abstract=abstract,
+            category=category,
+            ids=ids,
+            start=start,
+            max_results=max_results,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+
+    def download_pdf(
+        self,
+        arxiv_id: Optional[str] = None,
+        save_dir: Optional[str] = None,
+    ):
+        return get_ArxivQuery().download_pdf(arxiv_id=arxiv_id, save_dir=save_dir)
+
+    def get_paper_metadata(self, arxiv_id: Optional[str] = None) -> Optional[Dict]:
+        return get_ArxivQuery().get_paper_metadata(arxiv_id=arxiv_id)
+
+    def __getattr__(self, name: str):
+        return getattr(get_ArxivQuery(), name)
+
+
+def get_ArxivQueryTools() -> list[Callable[..., Any]]:
+    global _arxiv_query_tools
+
+    if _arxiv_query_tools is None:
+        query_client = get_ArxivQuery()
+        _arxiv_query_tools = [
+            query_client.search_papers,
+            query_client.download_pdf,
+            query_client.get_paper_metadata,
+        ]
+
+    return _arxiv_query_tools
+
+
+query = LazyArxivQuery()
+ArxivQueryTools = LazyToolList(get_ArxivQueryTools)

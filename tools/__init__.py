@@ -6,6 +6,9 @@ __all__ = [
     "ArxivQueryTools",
     "PDFProcessTools",
     "pdf_process",
+    "MinerUPDFProcess",
+    "MinerUPDFProcessTools",
+    "mineru_pdf_process",
     "zoteroclient",
     "ZoteroClientTools",
 ]
@@ -15,26 +18,47 @@ def __getattr__(name: str):
     if name in {"ArxivQuery", "query", "ArxivQueryTools"}:
         from .arxiv_query import ArxivQuery, ArxivQueryTools, query
 
-        return {
+        values = {
             "ArxivQuery": ArxivQuery,
             "query": query,
             "ArxivQueryTools": ArxivQueryTools,
-        }[name]
+        }
+        globals().update(values)
+        return values[name]
 
     if name in {"PDFProcessTools", "pdf_process"}:
         from .pdf_process import PDFProcessTools, pdf_process
 
-        return {
+        values = {
             "PDFProcessTools": PDFProcessTools,
             "pdf_process": pdf_process,
-        }[name]
+        }
+        globals().update(values)
+        return values[name]
+
+    if name in {"MinerUPDFProcess", "MinerUPDFProcessTools", "mineru_pdf_process"}:
+        from .mineru_pdf_process import (
+            MinerUPDFProcess,
+            MinerUPDFProcessTools,
+            mineru_pdf_process,
+        )
+
+        values = {
+            "MinerUPDFProcess": MinerUPDFProcess,
+            "MinerUPDFProcessTools": MinerUPDFProcessTools,
+            "mineru_pdf_process": mineru_pdf_process,
+        }
+        globals().update(values)
+        return values[name]
 
     if name in {"zoteroclient", "ZoteroClientTools"}:
         from .zotero_query import ZoteroClientTools, zoteroclient
 
-        return {
+        values = {
             "zoteroclient": zoteroclient,
             "ZoteroClientTools": ZoteroClientTools,
-        }[name]
+        }
+        globals().update(values)
+        return values[name]
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from typing import Any
 import urllib.error
 import urllib.parse
 import urllib.request as libreq
-from langchain.tools import tool
 import time
 from time import sleep
+
+from .lazy import LazyToolList
+
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 ARXIV_NS = "{http://arxiv.org/schemas/atom}"
 OPENSEARCH_NS = "{http://a9.com/-/spec/opensearch/1.1/}"
 
-@tool
 def query(
     search_query: str | None = None,
     *,
@@ -122,6 +124,21 @@ def query(
             raise
     sleep(3) # 请求 “one request every three seconds”，防止 “Rate Exceed”
     return _parse_response(response_text)
+
+
+_query_tool: Callable[..., dict[str, Any]] | None = None
+
+
+def get_query_tool() -> Callable[..., dict[str, Any]]:
+    global _query_tool
+
+    if _query_tool is None:
+        _query_tool = query
+
+    return _query_tool
+
+
+LegacyArxivQueryTools = LazyToolList(lambda: [get_query_tool()])
 
 
 def _build_search_query(
