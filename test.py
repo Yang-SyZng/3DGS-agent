@@ -1,17 +1,14 @@
 import sys
 import os
-import subprocess
-import time
-import urllib.request
-from langchain_core.documents import Document
-from pathlib import Path
-from tools.pdf_process import extract_text
-from rag.splitter import splitter
-from rag.embedding import embedding
-from rag.vector import get_milvus_client
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import logging
 import re
 
+from llama_index.core import Document
+
+from rag.splitter import splitter
+from rag.embedding import embedding
+from rag.vector import milvusvector
 logging.basicConfig(
     filename="y.log",
     level=logging.INFO,
@@ -68,7 +65,26 @@ def clean_pdf_text(text: str) -> str:
     return text.strip()
 
 def main():
-    milvusvector = get_milvus_client()
+    # mineru_pdf_process.parse_pdf(
+    #     "test/pdf_samples/text_sample_CN.pdf",
+    #     backend="hybrid-engine",
+    #     extra_args=["-m", "txt", "-high"],
+    #     # effort="high"
+    # )
+
+        # 1. 读取md
+    doc = splitter.load_markdown("database/pdf_ocr_results/text_sample_CN/text_sample_CN.md")
+
+    node = splitter.SplitMarkdownDocument(doc)
+
+    node = embedding.embed_nodes(node)
+    res = milvusvector.add_documents(node)
+    
+    print(node)
+
+
+    # print(embedding.embed_text("你是谁"))
+    # milvusvector = get_milvus_client()
 
     # output = extract_text("test/pdf_samples/text_sample_CN.pdf")
     # output = clean_pdf_text(output)
@@ -82,12 +98,12 @@ def main():
     #     collection_name="arxiv_papers",
     #     data=data
     # )
-    res = milvusvector.search(
-        collection_name="arxiv_papers",
-        data=[embedding.embed_query("营商环境创新县市 知识产权运营服务集聚区 社会投资项目用地清单制 二手房带押过户扩展类型 低效用地6500亩盘活 批而未供土地清理 产业社区标准化园区入园率 国企资产2200亿元 AA+评级 国企商业保理牌照 枫桥式治理 永和镇调解 中德科技论坛 达沃市结好 金门供水3100万吨")],
-        limit=10,
-    )[0]
-    print(res)
+    # res = milvusvector.search(
+    #     collection_name="arxiv_papers",
+    #     data=[embedding.embed_query("营商环境创新县市 知识产权运营服务集聚区 社会投资项目用地清单制 二手房带押过户扩展类型 低效用地6500亩盘活 批而未供土地清理 产业社区标准化园区入园率 国企资产2200亿元 AA+评级 国企商业保理牌照 枫桥式治理 永和镇调解 中德科技论坛 达沃市结好 金门供水3100万吨")],
+    #     limit=10,
+    # )[0]
+    # print(res)
 
     # print(output)
     # print(documents)
