@@ -1,7 +1,6 @@
-from .prompts import MainAgentSystemPrompt, DocumentRouterAgentSystemPrompt, ZoteroAgentSystemPrompt
+from .prompts import PlannerDescription, PlannerPrompt
 
 __all__ = [
-    "MainAgentSystemPrompt", 
-    "DocumentRouterAgentSystemPrompt",
-    "ZoteroAgentSystemPrompt",
+    "PlannerDescription",
+    "PlannerPrompt",
     ]

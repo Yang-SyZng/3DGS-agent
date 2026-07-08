@@ -52,30 +52,5 @@ class Embedding(OpenAILikeEmbedding):
             logger.error(f"查询embedding错误: {str(e)}")
             raise
     
-_embedding: Embedding | None = None
 
-
-def get_embedding() -> Embedding:
-    global _embedding
-
-    if _embedding is None:
-        _embedding = Embedding()
-
-    return _embedding
-
-
-class LazyEmbedding:
-    def embed_nodes(self, nodes: List[BaseNode]) -> List[BaseNode]:
-        return get_embedding().embed_nodes(nodes)
-
-    def embed_text(self, text: list[str] | str):
-        return get_embedding().embed_text(text)
-
-    def embed_query(self, text: str) -> List[float]:
-        return get_embedding().embed_query(text)
-
-    def __getattr__(self, name: str):
-        return getattr(get_embedding(), name)
-
-
-embedding = LazyEmbedding()
+embedding = Embedding()

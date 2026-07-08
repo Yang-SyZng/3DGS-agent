@@ -1,6 +1,7 @@
 import sys
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+import asyncio
 import logging
 import re
 
@@ -15,6 +16,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+from agents.RAGAgent import RAGAgent
 
 def clean_pdf_text(text: str) -> str:
     # 1. 统一特殊空白字符
@@ -64,7 +66,7 @@ def clean_pdf_text(text: str) -> str:
 
     return text.strip()
 
-def main():
+async def main():
     # mineru_pdf_process.parse_pdf(
     #     "test/pdf_samples/text_sample_CN.pdf",
     #     backend="hybrid-engine",
@@ -73,15 +75,18 @@ def main():
     # )
 
         # 1. 读取md
-    doc = splitter.load_markdown("database/pdf_ocr_results/text_sample_CN/text_sample_CN.md")
+    # doc = splitter.load_markdown("database/pdf_ocr_results/text_sample_CN/text_sample_CN.md")
 
-    node = splitter.SplitMarkdownDocument(doc)
+    # node = splitter.SplitMarkdownDocument(doc)
 
-    node = embedding.embed_nodes(node)
-    res = milvusvector.add_documents(node)
+    # node = embedding.embed_nodes(node)
     
-    print(node)
+    # res = milvusvector.add_documents(node)
 
+    # res = milvusvector.search("“五色”农业特色品牌")
+    # print(res)
+    rag = RAGAgent()
+    await rag.stream_run("2024年晋江市新兴产业重点发展哪些方向？")
 
     # print(embedding.embed_text("你是谁"))
     # milvusvector = get_milvus_client()
@@ -110,4 +115,4 @@ def main():
     # print(chunks)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

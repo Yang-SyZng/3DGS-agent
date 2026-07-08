@@ -5,6 +5,10 @@ from typing import Any, List, Sequence
 
 from pymilvus import MilvusClient
 from llama_index.core.schema import BaseNode
+from llama_index.core.tools import FunctionTool
+
+from .embedding import embedding
+
 from config import setting
 import logging
 from tqdm import tqdm
@@ -19,7 +23,6 @@ class MilvusVectorClient:
     ):
         self.collection_name = collection_name or setting.Milvus_collection_name
         self.db_directory = db_directory or setting.Milvus_db_directory
-        from .embedding import embedding
         self.embedding_fn = embedding
         self.collection_dim = collection_dim or setting.EMBEDDING_DIM
 
@@ -68,9 +71,9 @@ class MilvusVectorClient:
         row_id: str | int = node_id if self._use_string_id else self._node_id_to_int(node_id)
 
         return {
-            "id": row_id,
+            "id": node_id,
             "vector": node.embedding,
-            "node_id": node_id,
+            # "node_id": node_id,
             "text": node.get_content(),
             "metadata": node.metadata,
             "node_json": json.dumps(node.to_dict(), ensure_ascii=False),
@@ -99,59 +102,36 @@ class MilvusVectorClient:
         logger.info(f"成功添加{len(ids)}个文档")
         return ids
 
-_milvus_vector_client: MilvusVectorClient | None = None
+    def search(self, query: str, top_k: int = 5):
+        """在向量知识库中搜索与查询相关的文档。
+
+        当 agent 需要检索项目知识、已索引文档，或查找与用户问题在语义上
+        相似的上下文片段时使用此工具。
+
+        Args:
+            query: 自然语言搜索查询，用于描述需要检索的信息。
+            top_k: 最多返回的相关结果数量，默认为 5。
+
+        Returns:
+            按向量相似度排序的 Milvus 搜索结果。每条结果可能包含匹配文档
+            的 id、相似度分数、文本、元数据和序列化后的节点数据，具体字段
+            取决于集合的输出配置。
+        """
+        vector = embedding.embed_query(query)
+        res = self.milvusvector.search(
+            collection_name=self.collection_name,
+            data=[vector],
+            limit=top_k,
+            output_fields=["id", "text"]
+        )
+
+        return res[0]
 
 
-def get_milvus_vector_client() -> MilvusVectorClient:
-    global _milvus_vector_client
+milvusvector = MilvusVectorClient()
 
-    if _milvus_vector_client is None:
-        _milvus_vector_client = MilvusVectorClient()
-
-    return _milvus_vector_client
-
-
-def get_milvus_client() -> MilvusClient:
-    return get_milvus_vector_client().client
-
-
-class LazyMilvusClient:
-    @property
-    def collection_name(self) -> str:
-        return get_milvus_vector_client().collection_name
-
-    @property
-    def db_directory(self) -> str | Path:
-        return get_milvus_vector_client().db_directory
-
-    @property
-    def collection_dim(self) -> int:
-        return get_milvus_vector_client().collection_dim
-
-    @property
-    def client(self) -> MilvusClient:
-        return get_milvus_vector_client().client
-
-    def add_documents(self, nodes: Sequence[BaseNode]) -> list[Any]:
-        return get_milvus_vector_client().add_documents(nodes)
-
-    def insert(self, *args: Any, **kwargs: Any):
-        return get_milvus_client().insert(*args, **kwargs)
-
-    def search(self, *args: Any, **kwargs: Any):
-        return get_milvus_client().search(*args, **kwargs)
-
-    def query(self, *args: Any, **kwargs: Any):
-        return get_milvus_client().query(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any):
-        return get_milvus_client().delete(*args, **kwargs)
-
-    def upsert(self, *args: Any, **kwargs: Any):
-        return get_milvus_client().upsert(*args, **kwargs)
-
-    def __getattr__(self, name: str):
-        return getattr(get_milvus_vector_client(), name)
-
-
-milvusvector = LazyMilvusClient()
+ragtools = [
+    FunctionTool.from_defaults(
+        fn=milvusvector.search
+        ),
+]

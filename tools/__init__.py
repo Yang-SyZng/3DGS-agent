@@ -27,7 +27,7 @@ def __getattr__(name: str):
         return values[name]
 
     if name in {"PDFProcessTools", "pdf_process"}:
-        from .pdf_process import PDFProcessTools, pdf_process
+        from ..rag.parser.pdf_process import PDFProcessTools, pdf_process
 
         values = {
             "PDFProcessTools": PDFProcessTools,
@@ -37,7 +37,7 @@ def __getattr__(name: str):
         return values[name]
 
     if name in {"MinerUPDFProcess", "MinerUPDFProcessTools", "mineru_pdf_process"}:
-        from .mineru_pdf_process import (
+        from ..rag.parser.mineru_parser import (
             MinerUPDFProcess,
             MinerUPDFProcessTools,
             mineru_pdf_process,
