@@ -6,4 +6,3 @@ database/
 .*
 !.chainlit/
 !.chainlit/**
-README.MD
