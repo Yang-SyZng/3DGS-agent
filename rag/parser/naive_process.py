@@ -3,7 +3,7 @@ from typing import List
 import hashlib
 
 from llama_index.core import Document
-from ..paper_schema import SectionNode, SectionType, SECTION_KEYWORDS, CHILD_KEYWORDS
+from ...schema.paper_schema import SectionNode, SectionType, SECTION_KEYWORDS, CHILD_KEYWORDS
 
 def load_markdown(path: str, metadata: dict | None = None) -> Document:
     with open(path, "r", encoding="utf-8") as f:
@@ -15,12 +15,35 @@ def load_markdown(path: str, metadata: dict | None = None) -> Document:
     )
 
 
+def build_front_matter_node(front_matter: list[str], paper_id: str,) -> SectionNode | None:
+    if not front_matter:
+        return None
+
+    front_text = "\n\n".join(front_matter).strip()
+    if not front_text:
+        return None
+
+    node = SectionNode(
+        title=front_matter[0],
+        content=front_matter[1],
+        level=1,
+    )
+
+    node.path = ["Paper Metadata"]
+    node.section_id = generate_section_id(paper_id, node.path)
+
+    node.semantic_type = SectionType.OTHER
+
+    return node
+
 def parse_nodes(data: Document, pattern: str = r'(?=^#{1,3}\s)') -> List[SectionNode]:
     split_1 = split_section(data, pattern)
-    _, split_2 = split_title(split_1)
+    front_matter, split_2 = split_title(split_1)
     nodes = level_resolver(split_2)
 
-    return nodes
+    front_node = build_front_matter_node(front_matter, 'AbsGS')
+
+    return front_node, nodes
 
 
 def split_section(data: Document, pattern: str = r'(?=^#{1,3}\s)') -> List[str]:
@@ -136,7 +159,6 @@ def build_tree(nodes: List[SectionNode], paper_id: str) -> List[SectionNode]:
     return roots
 
 def clean_heading_title(title):
-
     title = title.strip()
 
     # 阿拉伯数字
@@ -182,7 +204,7 @@ def assign_semantic_type(node: SectionNode, parent_type: SectionType):
         child.semantic_type = classify_child(child, parent_type)
         assign_semantic_type(child, child.semantic_type)
 
-def classify_child(node:SectionNode, parent_type:SectionType):
+def classify_child(node: SectionNode, parent_type: SectionType):
     title = clean_heading_title(node.title).lower()
 
     # 默认继承

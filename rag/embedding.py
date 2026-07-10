@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Dict
 
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from llama_index.core.schema import BaseNode
@@ -25,12 +25,25 @@ class Embedding(OpenAILikeEmbedding):
             api_base=api_base or setting.BASE_URL,
         )
 
-    def embed_nodes(self, nodes: List[BaseNode]) -> List[BaseNode]:
-        texts = [node.get_content() for node in nodes]
+    # def embed_nodes(self, nodes: List[BaseNode]) -> List[BaseNode]:
+    def embed_nodes(self, nodes: List[Dict]) -> List[Dict]:
+        texts = []
+        for node in nodes:
+            embedding_text = f"""
+                Paper: {node['metadata']["paper_id"]}
+                Section: {node['metadata']["section_title"]}
+                Section path: {node['metadata']["section_path"]}
+                Section type: {node['metadata']["section_type"]}
+
+                Content: 
+                {node['text']}
+            """.strip()
+            texts.append(embedding_text)
+
         embeddings = self.get_text_embedding_batch(texts, show_progress=True)
 
         for node, embedding in zip(nodes, embeddings):
-            node.embedding = embedding
+            node['embedding'] = embedding
 
         return nodes
 

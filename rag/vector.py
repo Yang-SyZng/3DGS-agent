@@ -1,9 +1,9 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, List, Sequence
+from typing import Any, List, Sequence, Dict
 
-from pymilvus import MilvusClient
+from pymilvus import MilvusClient, DataType, Function, FunctionType
 from llama_index.core.schema import BaseNode
 from llama_index.core.tools import FunctionTool
 
@@ -64,31 +64,31 @@ class MilvusVectorClient:
         return int.from_bytes(digest, byteorder="big", signed=False) & ((1 << 63) - 1)
 
     def _node_to_row(self, node: BaseNode) -> dict[str, Any]:
-        if node.embedding is None:
+        if node['embedding'] is None:
             raise ValueError(f"节点 {node.node_id} 缺少 embedding，请先调用 embedding.embed_nodes(nodes)")
 
-        node_id = str(node.node_id)
-        row_id: str | int = node_id if self._use_string_id else self._node_id_to_int(node_id)
+        # node_id = str(node.node_id)
+        # row_id: str | int = node_id if self._use_string_id else self._node_id_to_int(node_id)
 
         return {
-            "id": node_id,
-            "vector": node.embedding,
+            "id": node['id_'],
+            "vector": node['embedding'],
             # "node_id": node_id,
-            "text": node.get_content(),
-            "metadata": node.metadata,
-            "node_json": json.dumps(node.to_dict(), ensure_ascii=False),
+            "text": node['text'],
+            "metadata": node['metadata'],
+            # "node_json": json.dumps(node.to_dict(), ensure_ascii=False),
         }
 
     def add_documents(
         self,
-        nodes: Sequence[BaseNode],
+        nodes: List[Dict],
     ) -> list[Any]:
-        if isinstance(nodes, BaseNode):
-            nodes = [nodes]
+        # if isinstance(nodes, List[Dict]):
+        #     nodes = [nodes]
 
-        missing_embeddings = [node for node in nodes if node.embedding is None]
-        if missing_embeddings:
-            self.embedding_fn.embed_nodes(missing_embeddings)
+        # missing_embeddings = [node for node in nodes if node.embedding is None]
+        # if missing_embeddings:
+        #     self.embedding_fn.embed_nodes(missing_embeddings)
 
         rows = [self._node_to_row(node) for node in tqdm(nodes, desc="processing")]
         if not rows:
@@ -122,7 +122,7 @@ class MilvusVectorClient:
             collection_name=self.collection_name,
             data=[vector],
             limit=top_k,
-            output_fields=["id", "text"]
+            output_fields=["text", "metadata"]
         )
 
         return res[0]
