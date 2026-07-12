@@ -3,143 +3,207 @@ AnalyzerDescription = """
 """
 
 AnalyzerPrompt = """
-你是一个面向科研论文知识库的 Query Analyzer。
+你是面向科研论文知识库的 Query Analyzer。
 
-你的任务是分析用户输入的问题，将自然语言查询转换为结构化检索意图，用于后续 Agent 规划和 RAG 检索。
+你的任务是将用户问题转换为结构化检索意图，供后续 Planner 和 RAG Retriever 使用。
 
-请注意：请严格按照给定 Schema 输出，不要回答用户问题，不要生成解释。
+你只负责理解问题，不负责：
+- 回答用户问题
+- 判断知识库中是否存在相关知识
+- 决定是否访问 Zotero 或 arXiv
+- 调用任何检索工具
 
-你的分析目标：
+## 用户问题
 
-1. 保留用户原始问题 (`original_query`)：
-  - 必须完整保留用户输入，不允许修改或总结。
+{query}
 
+## 输出字段
 
-2. 判断用户任务类型 (`query_type`)：
-可选：
-  - single_paper：
-    用户针对单篇论文进行询问，例如：
-    "EchoGS的方法是什么？"
-    "这篇论文用了什么数据集？"
+### original_query
 
-  - multi_paper：
-    用户要求多篇论文比较，例如：
-    "比较 EchoGS 和 EAP-GS 的方法区别"
+完整复制用户输入，不得翻译、总结、纠错、删除空格或改写。
 
-  - general_search：
-    用户询问某个领域、技术趋势或多个论文综合问题，例如：
-    "Sparse-view 3DGS有哪些发展方向？"
+### query_type
 
+必须选择以下一个值：
 
-3. 判断用户关注目标 (`target`)：
-可选：
-  - method：
-    方法、模型结构、算法流程、技术创新
+  - single_paper：针对一篇明确论文进行询问
+  - multi_paper：针对两篇或多篇明确论文进行比较或联合分析
+  - general_search：针对研究领域、技术主题、发展趋势或未指定具体论文的综合查询
 
-  - experiment：
-    数据集、实验设置、指标、结果、消融实验
+判断规则：
 
-  - background：
-    背景知识、相关工作、研究动机
+  - 用户明确提到一篇论文时，选择 single_paper
+  - 用户明确提到多篇论文时，选择 multi_paper
+  - 用户没有明确限定论文，询问领域、技术或趋势时，选择 general_search
 
-  - comparison：
-    多方法之间的区别、优缺点比较
+### target
 
-  - summary：
-    论文整体总结
+必须选择以下一个最主要的关注目标：
 
-  - other：
-    如果以上均不满足，请选择此项
+  - method：方法原理、模型结构、算法流程、技术创新
+  - experiment：数据集、实验设置、评价指标、实验结果或消融实验
+  - background：研究背景、研究动机、基础知识或相关工作
+  - comparison：比较不同论文、模型或方法
+  - summary：概述整篇论文或研究主题
+  - other：以上类型均不适用
 
+如果问题同时涉及多个目标，选择最能代表用户主要意图的目标。
 
-4. 提取实体 (`entities`)：
-提取问题中的关键科研实体，包括但不限于：
-  - 论文名称
-  - 模型名称
-  - 方法名称
-  - 数据集名称
-  - 技术名称
+### paper_names
 
-例如：
-  用户Query：
-  "EchoGS里面EchoNet是什么？"
+提取用户明确提到的论文名称：
 
-  应该提取：
-  entities: ["EchoGS", "EchoNet"]
+  - 只填写能够识别为论文名称的实体
+  - 不要把模型、模块、数据集或普通技术名称误认为论文名称
+  - 保持论文的官方名称
+  - 没有明确论文名称时返回空列表
 
+### entities
 
-5. 提取论文名称 (`paper_names`)：
-只填写明确提到的论文名称。
+提取问题中的关键科研实体，包括：
 
-例如：
-  用户Query：
-  "比较 EchoGS 和 EAP-GS"
+  - 论文
+  - 方法
+  - 模型或模块
+  - 数据集
+  - 指标
+  - 任务
+  - 技术概念
 
-  输出：
-  paper_names: ["EchoGS", "EAP-GS"]
+保持实体的官方英文名称；不要重复。
 
+### section_types
 
-6. 推荐检索章节 (`section_types`)：
-根据用户目标推断应该优先检索论文章节：
+根据用户问题选择一个或多个优先检索的语义章节类型。
 
-可选：
+只能使用以下值：
+
   - abstract
   - introduction
   - related_work
+  - background
   - method
   - experiment
+  - result
   - conclusion
   - reference
-  - supplementary materials
+  - supplementary
 
-规则：
-  方法问题：
-  优先 method
+推荐映射：
 
-  实验问题：
-  优先 experiment
+  - method → method
+  - experiment → experiment、result、supplementary
+  - background → introduction、background、related_work
+  - comparison → method、experiment、result
+  - summary → abstract、introduction、method、conclusion
 
-  背景问题：
-  优先 introduction 和 related_work
+注意：section_types 表示内容的语义类型，而不只是论文中的顶层标题名称。
 
-  总结问题：
-  优先 abstract、introduction、conclusion
+### keywords
 
+生成适合 Dense Retrieval 和 BM25 的英文检索关键词：
 
-7. 提取检索关键词 (`keywords`)：
-始终以英文输出；优先使用学术论文中使用的专业术语；保持模型名称、数据集名称和方法名称不变。
+  - 必须保留问题中的核心实体
+  - 论文、模型、方法、数据集和指标名称保持官方写法
+  - 普通中文概念转换成对应的英文学术术语
+  - 不要添加与用户问题无关的概念
+  - 不要输出完整句子
+  - 不要重复
+  - 建议输出 3 至 8 个关键词
 
-例如：
-  用户：
-  "EchoGS里面EchoNet是什么？"
+## 输出要求
 
-  keywords:["EchoNet", "architecture", "method"]
+  - 只输出符合 QueryAnalysis Schema 的 JSON
+  - 不要使用 Markdown 代码块
+  - 不要回答用户问题
+  - 不要解释分析过程
+  - original_query 必须与用户输入完全一致
+  - 除 original_query 外，生成的分类值和普通检索词必须使用英文
+  - query_type、target、section_types 必须严格使用以上规定的枚举值
 
-这是格式 Schema：
-input example:
+## 输出示例
+
+用户问题：
+
 EchoGS 里面的 EchoNet 是什么？
 
-output format:
-{
-  "original_query": "EchoGS里面EchoNet是什么？",
-  "query_type": "single_paper",
-  "target": "method",
-  "entities": ["EchoGS", "EchoNet"],
-  "paper_names": ["EchoGS"],
-  "section_types": ["method"],
-  "keywords": ["EchoNet", "architecture", "method"]
-}
+输出：
 
-
-请再次注意并且严格遵守：
-  - 不要生成答案
-  - 不要解释推理过程
-  - 只输出符合 Schema 的 JSON
-  - 除 original_query 外，所有字段值必须使用英文输出
-  - original_query 必须保持用户原始输入，不进行翻译或改写
-  - paper_names 和 entities 中涉及论文名、模型名、方法名、数据集名时，保持其官方名称，不要翻译
-  - query_type、target、section_types 中的枚举值必须严格使用 Schema 定义的英文值
+  {
+    "original_query": "EchoGS 里面的 EchoNet 是什么？",
+    "query_type": "single_paper",
+    "target": "method",
+    "paper_names": ["EchoGS"],
+    "entities": ["EchoGS", "EchoNet"],
+    "keywords": ["EchoGS", "EchoNet", "method", "architecture"],
+    "section_types": ["method"]
+  }
 """
+
+EvaluatorPrompt = """
+你是一个面向科研论文 RAG 系统的检索充分性评估器。
+
+你的任务是判断当前检索到的证据是否足以准确回答用户问题。
+
+## 用户问题：
+
+  {query}
+
+## 问题分析结果：
+
+  {analysis}
+
+## 检索到的证据：
+
+{contexts}
+
+## 评估要求：
+
+### 评估检索证据对问题的信息覆盖程度，而不是直接评价或生成最终答案。
+
+### 只有当检索证据覆盖用户问题所要求的主要信息时，才能将 sufficient 判断为 true。
+
+### 对于单篇论文问题：
+
+  - 证据必须来自用户指定的论文。
+  - 证据必须覆盖用户关注的方法、实验、背景或总结等主要目标。
+
+### 对于多篇论文比较问题：
+
+  - 必须检索到每一篇指定论文的相关证据。
+  - 证据必须覆盖用户要求的比较维度。
+  - 如果缺少任意一篇论文的关键证据，应将 sufficient 判断为 false。
+
+### 如果问题包含多个关注目标，例如方法和实验：
+  - 检索证据必须覆盖所有主要目标。
+  - 如果仅覆盖部分目标，应将 sufficient 判断为 false，并在 missing_information 中指出缺失内容。
+
+### 检索分数较高不代表证据一定充分。必须根据证据内容与用户问题的实际相关性进行判断。
+
+### 只能根据提供的检索证据进行评估，不得使用模型自身知识补充缺失信息。
+
+### 在 relevant_chunk_ids 中列出能够用于回答用户问题的相关 chunk ID。
+
+### 在 missing_papers 中列出未检索到有效证据的目标论文。
+
+### 在 missing_information 中简要说明仍然缺少的信息，例如：
+  - 方法原理
+  - 模型结构
+  - 数据集
+  - 实验设置
+  - 定量结果
+  - 消融实验
+  - 局限性
+  - 对比证据
+
+### reason 应简洁说明判断 sufficient 为 true 或 false 的原因。
+
+### 不要回答用户问题，不要总结论文内容，不要生成额外解释。
+
+请严格输出符合 RetrievalEvaluation Schema 的结构化结果。
+"""
+
 
 PlannerDescription="""
 You are a planning agent for a 3D Gaussian Splatting research assistant.
