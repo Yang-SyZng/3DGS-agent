@@ -12,14 +12,14 @@ Langgraph Workflow
                                         Analyzer
                                     (analyze_query)
                                            ↓
-       ┌────── → ────── → ──── → ───── Retrieval
+       ┌────── → ────── → ──── → ───── Retriever
        │                          (retrieve_knowledge)
        │                                   ↓
        │                               Evaluator
        ↑                          (evaluate_retrieval)          
        │                    ┌──────────────┴───────────────┐
        │                    ↓                              ↓
-       │                insufficient                   sufficient
+       │               insufficient                   sufficient
        ↑                    ↓                              │
        │              PaperResolver                        │
        │         (resolve_missing_papers)                  │
