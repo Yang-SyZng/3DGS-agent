@@ -4,14 +4,22 @@ from prompts.prompts import ResearchSynthesizerPrompt
 from schema.analyzer_schema import QueryAnalysis
 from schema.researcher_schema import ResearchResult
 from schema.evaluator_schema import RetrievalEvaluation
+
 from llama_index.llms.openai_like import OpenAILike
+try:
+    from llama_index.llms.ollama import Ollama
+except ImportError as exc:
+    raise ImportError(
+        "Not Module name 'ollama'"
+    ) from exc
+
 from llama_index.core import PromptTemplate
 
 import json
 from config.settings import setting
 
 class ResearchSynthesizer:
-    def __init__(self, llm: OpenAILike = None):
+    def __init__(self, llm: OpenAILike | Ollama = None):
         llm_model = OpenAILike(
             api_base=setting.BASE_URL,
             api_key=setting.API_KEY,

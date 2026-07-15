@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from prompts.prompts import EvaluatorPrompt
 from schema.evaluator_schema import RetrievalEvaluation
+
 from llama_index.llms.openai_like import OpenAILike
+try:
+    from llama_index.llms.ollama import Ollama
+except ImportError as exc:
+    raise ImportError(
+        "Not Module name 'ollama'"
+    ) from exc
+
 from llama_index.core import PromptTemplate
 
 import json
@@ -10,7 +18,7 @@ from config.settings import setting
 
 
 class RetrievalEvaluator:
-    def __init__(self, llm: OpenAILike = None):
+    def __init__(self, llm: OpenAILike | Ollama = None):
         llm_model = OpenAILike(
             api_base=setting.BASE_URL,
             api_key=setting.API_KEY,

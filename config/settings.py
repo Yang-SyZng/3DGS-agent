@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -24,6 +25,26 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_ID: str | None = None
     EMBEDDING_DIM: int | None = None
     OCR_MODEL_ID: str | None = None
+
+    # Local LLM Server
+    Globle_Local_Optional: bool = True
+    Local_Model: Dict | None = {
+        "LLM": {
+            "gpu": "0",
+            "port": 11500,
+            "model": "qwen3.6:27b",
+            "model_dir": "/usr/share/ollama/.ollama/models",
+            "num_parallel": "2", # 控制并发请求
+            "context_length": "64000", # 上下文长度
+        },
+        # "Embedding": {
+
+        # },
+        # "Rerank": {
+
+        # }
+    }
+
 
     # DATA save config
     mainly_save_dir: Path = Path("./database")
