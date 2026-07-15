@@ -7,22 +7,18 @@ class Evidence(BaseModel):
     )
 
     paper_id: str | None = Field(
-        default=None,
         description="证据所属论文 ID"
     )
 
     paper_title: str | None = Field(
-        default=None,
         description="证据所属论文标题"
     )
 
     chunk_id: str | None = Field(
-        default=None,
         description="证据对应的检索 chunk ID"
     )
 
     section_path: str | None = Field(
-        default=None,
         description="证据所在章节路径，例如 Method/EchoNet"
     )
 
@@ -41,23 +37,19 @@ class Finding(BaseModel):
     )
 
     evidence_ids: list[str] = Field(
-        default_factory=list,
         description="支持该结论的 Evidence ID"
     )
 
 
 class ResearchResult(BaseModel):
     findings: list[Finding] = Field(
-        default_factory=list,
         description="针对用户问题整理出的主要研究结论"
     )
 
     evidence: list[Evidence] = Field(
-        default_factory=list,
         description="支撑研究结论的论文证据"
     )
 
     limitations: list[str] = Field(
-        default_factory=list,
         description="当前证据无法确定、缺失或存在歧义的信息"
     )

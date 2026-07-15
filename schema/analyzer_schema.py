@@ -39,27 +39,26 @@ class QueryAnalysis(BaseModel):
     )
 
     targets: list[QueryTarget] = Field(
-        default_factory=list,
+        min_length=1,
         description="用户关注的一个或多个信息维度"
     )
 
     paper_names: list[str] = Field(
-        default_factory=list,
         description="用户明确提到的论文名称"
     )
 
     entities: list[str] = Field(
-        default_factory=list,
+        min_length=3,
         description="方法、模型、数据集、指标和技术等关键实体"
     )
 
     keywords: list[str] = Field(
-        default_factory=list,
-        description="用于 Dense Retrieval 或 BM25 的英文检索关键词"
+        min_length=3,
+        max_length=8,
+        description="用于检索的英文关键词"
     )
 
     section_types: list[SectionType] = Field(
-        default_factory=list,
+        min_length=1,
         description="建议优先检索的语义章节类型"
     )
-    

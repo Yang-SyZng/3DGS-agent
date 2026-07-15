@@ -62,9 +62,9 @@ Classification rules:
 A model, module, method, dataset, benchmark, metric, or technical concept must
 not be treated as a paper unless the query clearly uses it as a paper title.
 
-### target
+### targets
 
-Select exactly one primary target:
+Select one or more targets from the following values:
   - `method`:
     Method principles, model architecture, algorithm workflow, modules,
     optimization strategy, or technical contributions.
@@ -82,8 +82,8 @@ Select exactly one primary target:
   - `other`:
     The query does not fit any category above.
 
-If the query involves multiple targets, choose the one that best represents
-the user's main intent.
+Put the user's primary intent first. Add another target only when it represents
+a distinct intent explicitly requested by the user.
 
 Examples:
 - "What is the architecture of EchoNet?" → `method`
@@ -176,7 +176,7 @@ Requirements:
 
 ## Consistency requirements
   - Every value in `paper_names` should normally also appear in `entities`.
-  - `section_types` must be consistent with `target`.
+  - `section_types` must be consistent with `targets`.
   - `keywords` must preserve the main entities and intent of the original query.
   - Do not infer whether the knowledge base contains enough information.
   - Do not decide whether external paper acquisition is required.
@@ -191,7 +191,7 @@ Requirements:
   - `original_query` must exactly match the user input.
   - Except for `original_query`, categorical values and ordinary retrieval terms
     must be written in English.
-  - `query_type`, `target`, and `section_types` must strictly use the allowed
+  - `query_type`, `targets`, and `section_types` must strictly use the allowed
     values defined above.
 
 ## Example
@@ -203,7 +203,7 @@ Output:
 {
   "original_query": "EchoGS 里面的 EchoNet 是什么？",
   "query_type": "single_paper",
-  "target": "method",
+  "targets": ["method"],
   "paper_names": ["EchoGS"],
   "entities": ["EchoGS", "EchoNet"],
   "section_types": ["method"],

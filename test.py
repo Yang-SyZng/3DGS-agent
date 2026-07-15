@@ -3,17 +3,8 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import asyncio
 import logging
-import re
+from workflow.graph import graph
 
-from rag.parser.mineru_parser import mineru_parser
-from rag.parser.splitter import splitter
-from rag.parser.naive_process import load_markdown, split_section, split_title, level_resolver, build_tree, parse_nodes, classify_section_tree
-from rag.chunks_builder import flatten_tree, splitter_chunks
-from rag.embedding import embedding
-
-from rag.vector import milvusvector
-
-import json
 logging.basicConfig(
     filename="y.log",
     level=logging.INFO,
@@ -43,8 +34,16 @@ async def main():
     # ) as f:
     #     embed_nodes = json.load(f)
     # ids = milvusvector.add_documents(embed_nodes)
-    results = milvusvector.search("method")
-    print(results)
+    # results = milvusvector.search("method")
+    # print(results)
+
+    result = await graph.ainvoke({
+        "query": "AbsGS 的核心方法是什么？"
+    })
+
+    print(result["analysis"])
+    print(result["retrieved_nodes"])
+    print(result["retrieval_evaluation"])
 
 if __name__ == "__main__":
     asyncio.run(main())

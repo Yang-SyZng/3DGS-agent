@@ -11,17 +11,14 @@ class RetrievalEvaluation(BaseModel):
     )
 
     missing_papers: list[str] = Field(
-        default_factory=list,
         description="知识库中缺失或未成功召回的论文"
     )
 
     missing_information: list[str] = Field(
-        default_factory=list,
         description="回答问题仍然缺少的信息"
     )
 
     relevant_chunk_ids: list[str] = Field(
-        default_factory=list,
         description="与问题相关并可用于回答的chunk ID"
     )
 
