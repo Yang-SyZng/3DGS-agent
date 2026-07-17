@@ -38,12 +38,10 @@ async def main():
     # print(results)
 
     result = await graph.ainvoke({
-        "query": "AbsGS 的核心方法是什么？"
+        "user_query": "AbsGS 的核心方法是什么？"
     })
 
-    print(result["analysis"])
-    print(result["retrieved_nodes"])
-    print(result["retrieval_evaluation"])
+    print(result["research_result"])
 
 if __name__ == "__main__":
     asyncio.run(main())

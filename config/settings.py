@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     Globle_Local_Optional: bool = True
     Local_Model: Dict | None = {
         "LLM": {
-            "gpu": "0",
+            "gpu": "1",
             "port": 11500,
             "model": "qwen3.6:27b",
             "model_dir": "/usr/share/ollama/.ollama/models",
