@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from prompts.prompts import AnalyzerPrompt
+import json
+
+from prompts.prompts import AnalyzerPrompt, AnalyzerRefinementPrompt
 from schema.analyzer_schema import QueryAnalysis
 
 from llama_index.llms.openai_like import OpenAILike
@@ -30,6 +32,7 @@ class QueryAnalyzer:
         self.llm = llm or llm_model
 
         self.prompt = PromptTemplate(AnalyzerPrompt)
+        self.refinement_prompt = PromptTemplate(AnalyzerRefinementPrompt)
 
     async def analyze(self, query: str) -> QueryAnalysis:
         result = await self.llm.astructured_predict(
@@ -41,6 +44,35 @@ class QueryAnalyzer:
         # if not result.keywords:
         #     result.keywords = self._build_fallback_keywords(result)
 
+        return result
+
+    async def refine(
+        self,
+        query: str,
+        current_analysis: QueryAnalysis,
+        missing_information: list[str],
+        limitations: list[str],
+    ) -> QueryAnalysis:
+        """Build a new retrieval plan for information missing from prior rounds."""
+        result = await self.llm.astructured_predict(
+            output_cls=QueryAnalysis,
+            prompt=self.refinement_prompt,
+            query=query,
+            current_analysis=json.dumps(
+                current_analysis.model_dump(mode="json"),
+                ensure_ascii=False,
+            ),
+            missing_information=json.dumps(
+                missing_information,
+                ensure_ascii=False,
+            ),
+            limitations=json.dumps(limitations, ensure_ascii=False),
+        )
+
+        # Refinement may broaden retrieval terms, but must not change the
+        # original task scope or remove explicitly identified papers.
+        result.query_type = current_analysis.query_type
+        result.paper_names = current_analysis.paper_names
         return result
 
     # @staticmethod
