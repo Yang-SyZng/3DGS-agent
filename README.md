@@ -30,49 +30,50 @@
 ## LangGraph Workflow
 
 ```text
-                                                              START
-                                                                ↓
-                                                            User_Query
-                                                                ↓
-                                                              Analyzer
-                                                          (Analyze_Query)
-                                                                ↓
-                    ┌────────── → ─────── → ────── → ───── Retriever
-                    │                                 (Retrieve_Knowledge)
-                    ↑                                          ↓
-                    │                                      Evaluator
-                    │                                 (Evaluate_Retrieval)          
-                    │                           ┌──────────────┴───────────────┐
-                    │                           ↓                              ↓
-                    │                     `insufficient`                  `sufficient`
-                    │                           ↓                              │
-                    │    ┌────────────────── Matcher ────────────────────┐     │ 
-                    ↑    │                      ↓                        │     │
-                    │    │               search_on_arxiv                 │     ↓
-                    │    │                 (MCP_Tools)                   │     │
-                    │    │           ┌──────────┴──────────┐             │     │
-                    │    │       `matched`            `unmatched`        │     │
-                    │    │(Match_Paper_Metadata)           ↓             │     │
-                    │    │           │                   retry           │     │
-                    │    │           │           Search_On_Other_Source  │     │
-                    ↑    │           │                (MCP_Tools)        │     │
-                    │    │           │       ┌─────────────┴───────┐     │     ↓
-                    │    │           │   `matched`            `unmatched`│     │
-                    │    │           │       ↓                     ↓     │     │
-                    │    │           └─ Download_Pdf            Failed   │     │ 
-                    │    └────────────────── ↓ ─────────────────── ↓ ────┘     │
-                    │                  Process_Papers      Manual_Processing   │
-                    │                        ↓                                 │
-                    ├────────────── ─ update_knowledge                         │
-                    ↑                                  ┌───────────────────────┘
-                    │                                  ↓
-                    └────── `insufficient` ─── ResearchSynthesizer
-                                                (synthesize_answer)
-                                                        ↓
-                                                  `sufficient`
-                                                        ↓
-                                                      Writer
-                                                        ↓
-                                                      END
+                                                          START
+                                                            ↓
+                                                        User_Query
+                                                            ↓
+                                                          Analyzer
+                                                      (Analyze_Query)
+                                                            ↓
+                ┌────────── → ─────── → ────── → ───── Retriever
+                │                                 (Retrieve_Knowledge)
+                ↑                                          ↓
+                │                                      Evaluator
+                │                                 (Evaluate_Retrieval)          
+                │                           ┌──────────────┴───────────────┐
+                │                           ↓                              ↓
+                │                     `insufficient`                  `sufficient`
+                │                           ↓                              │
+                │    ┌────────────────── Matcher ────────────────────┐     │ 
+                ↑    │                      ↓                        │     │
+                │    │               search_on_arxiv                 │     ↓
+                │    │                 (MCP_Tools)                   │     │
+                │    │           ┌──────────┴──────────┐             │     │
+                │    │       `matched`            `unmatched`        │     │
+                │    │(Match_Paper_Metadata)           ↓             │     │
+                │    │           │                  /retry/          │     │
+                │    │           │           Search_On_Other_Source  │     │
+                ↑    │           │                (MCP_Tools)        │     │
+                │    │           │       ┌─────────────┴───────┐     │     ↓
+                │    │           │   `matched`            `unmatched`│     │
+                │    │           │       ↓                     ↓     │     │
+                │    │           └ Download_PDF            /Failed/  │     │ 
+                │    │              (MCP_Tools)                │     │     │
+                │    └────────────────── ↓ ─────────────────── ↓ ────┘     │
+                │                  Process_Papers      Manual_Processing   │
+                │                        ↓                                 │
+                ├──────────────── update_knowledge                         │
+                ↑                                  ┌───────────────────────┘
+                │                                  ↓
+                └────── `insufficient` ─── ResearchSynthesizer
+                                            (synthesize_answer)
+                                                    ↓
+                                               `sufficient`
+                                                    ↓
+                                                  Writer
+                                                    ↓
+                                                    END
 
 ```
