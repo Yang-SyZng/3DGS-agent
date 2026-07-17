@@ -59,8 +59,6 @@ class RetrievalEvaluator:
             contexts=contexts,
         )
 
-        result.original_query = query
-
         return result
     
     def _format_contexts(self, nodes) -> str:

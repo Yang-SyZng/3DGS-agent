@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from prompts.prompts import ResearchSynthesizerPrompt
+from prompts.prompts import ResearcherPrompt
 from schema.analyzer_schema import QueryAnalysis
 from schema.researcher_schema import ResearchResult
 from schema.evaluator_schema import RetrievalEvaluation
@@ -18,7 +18,7 @@ from llama_index.core import PromptTemplate
 import json
 from config.settings import setting
 
-class ResearchSynthesizer:
+class ChunkResearcher:
     def __init__(self, llm: OpenAILike | Ollama = None):
         llm_model = OpenAILike(
             api_base=setting.BASE_URL,
@@ -31,16 +31,19 @@ class ResearchSynthesizer:
 
         self.llm = llm or llm_model
 
-        self.prompt = PromptTemplate(ResearchSynthesizerPrompt)
+        self.prompt = PromptTemplate(ResearcherPrompt)
     
-    async def synthesis(self,
+    async def research(self,
                     query: str,
                     analysis: QueryAnalysis,
                     retrieved_nodes: list,
-                    retrieval_evaluation: RetrievalEvaluation
+                    retrieval_evaluated_result: RetrievalEvaluation
               ) -> ResearchResult:
         if not retrieved_nodes:
             return ResearchResult(
+                sufficient=False,
+                findings=[],
+                evidence=[],
                 limitations=[
                     "No retrieved evidence is available for synthesis."
                 ]
@@ -48,13 +51,16 @@ class ResearchSynthesizer:
 
         contexts = self._format_contexts(
             retrieved_nodes,
-            retrieval_evaluation.relevant_chunk_ids,
+            retrieval_evaluated_result.relevant_chunk_ids,
         )
         if not contexts:
             return ResearchResult(
+                sufficient=False,
+                findings=[],
+                evidence=[],
                 limitations=[
-                    retrieval_evaluation.reason,
-                    *retrieval_evaluation.missing_information,
+                    retrieval_evaluated_result.reason,
+                    *retrieval_evaluated_result.missing_information,
                 ]
             )
 
@@ -67,17 +73,17 @@ class ResearchSynthesizer:
                 ensure_ascii=False,
             ),
             retrieval_evaluation=json.dumps(
-                retrieval_evaluation.model_dump(mode="json"),
+                retrieval_evaluated_result.model_dump(mode="json"),
                 ensure_ascii=False,
             ),
             retrieved_evidence=contexts,
         )
 
-        if not retrieval_evaluation.sufficient:
+        if not retrieval_evaluated_result.sufficient:
             existing = set(result.limitations)
             for limitation in [
-                retrieval_evaluation.reason,
-                *retrieval_evaluation.missing_information,
+                retrieval_evaluated_result.reason,
+                *retrieval_evaluated_result.missing_information,
             ]:
                 if limitation and limitation not in existing:
                     result.limitations.append(limitation)

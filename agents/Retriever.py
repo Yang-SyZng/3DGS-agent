@@ -14,10 +14,11 @@ class PaperRetriever:
 
     async def retrieve(
         self,
+        query: str,
         analysis: QueryAnalysis,
         top_k: int = 5,
     ) -> list[Any]:
-        query_text = self._build_query(analysis)
+        query_text = self._build_query(query, analysis)
         query_embedding = await self._embed_query(query_text)
         filters = self._build_filters(analysis)
 
@@ -29,9 +30,9 @@ class PaperRetriever:
 
         return results
 
-    def _build_query(self, analysis: QueryAnalysis) -> str:
+    def _build_query(self, query: str, analysis: QueryAnalysis) -> str:
         parts = [
-            analysis.original_query,
+            query,
             *analysis.entities,
             *analysis.keywords,
         ]
