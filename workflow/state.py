@@ -10,19 +10,17 @@ from typing_extensions import NotRequired
 
 class AgentState(TypedDict):
     # 输入
-    query: str
+    user_query: str
     # analysis: QueryAnalysis
     analysis: QueryAnalysis
 
     # 检索
-    # retrieved_nodes: list
     retrieved_nodes: NotRequired[list]
-    # retrieval_evaluation: RetrievalEvaluation
-    retrieval_evaluation: NotRequired[RetrievalEvaluation]
+    retrieval_evaluated_result: NotRequired[RetrievalEvaluation]
 
-    # 缺失知识
-    # missing_papers: list[str]
-    # acquisition_queries: list[str]
+    # Research
+    research_result: NotRequired[ResearchResult]
+
 
     # 外部获取
     # resolved_papers: list[PaperResolution]
@@ -30,12 +28,12 @@ class AgentState(TypedDict):
     # ingested_paper_ids: list[str]
 
     # 流程控制
-    retrieval_round: int
+    ## 查询索引次数
+    retrieval_round: int = 0
     # arxiv_retry_count: int
     # errors: list[str]
 
     # 输出
-    research_result: NotRequired[ResearchResult]
     answer: NotRequired[str]
 
 class PaperResolution(BaseModel):
