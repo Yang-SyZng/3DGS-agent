@@ -30,49 +30,49 @@
 ## LangGraph Workflow
 
 ```text
-                                                    START
-                                                      ↓
-                                                  User_Query
-                                                      ↓
-                                                    Analyzer
-                                                (analyze_query)
-                                                      ↓
-                  ┌────── → ────── → ──── → ───── Retriever
-                  │                          (retrieve_knowledge)
-                  │                                   ↓
-                  │                               Evaluator
-                  ↑                          (evaluate_retrieval)          
-                  │                    ┌──────────────┴───────────────┐
-                  │                    ↓                              ↓
-                  │               insufficient                   sufficient
-                  ↑                    ↓                              │
-                  │              PaperResolver                        │
-                  │         (resolve_missing_papers)                  │
-                  │                    ↓                              │
-                  │           route_zotero_result                     │
-                  ↑                    ↓                              ↓ 
-                  │         ┌──────────────────────┐                  │
-                  │       found                not_found              │  
-                  │         ↓                      ↓                  │
-                  │  load_zotero_pdf        search_on_arxiv           │
-                  ↑         │                 ┌────┴────┐             ↓
-                  │         │                 ↓         ↓             │
-                  │         │              matched  unmatched         │
-                  │         ↓                 │         │             │
-                  │         │                 ↓     retry/fail        │
-                  ↑         │          load_arxiv_pdf                 ↓
-                  │         │                 ↓                       │
-                  │         └──────────┬──────┘                       │
-                  │              process_papers                       │
-                  │                    ↓                              │
-                  └───── ← ──── update_knowledge                      ↓
-                                                                      │
-                                              ┌───────────────────────┘
-                                              ↓
-                                      ResearchSynthesizer
-                                      (synthesize_answer)
-                                              ↓
-                                            Writer
-                                              ↓
-                                              END
+                                                              START
+                                                                ↓
+                                                            User_Query
+                                                                ↓
+                                                              Analyzer
+                                                          (Analyze_Query)
+                                                                ↓
+                    ┌────────── → ─────── → ────── → ───── Retriever
+                    │                                 (Retrieve_Knowledge)
+                    ↑                                          ↓
+                    │                                      Evaluator
+                    │                                 (Evaluate_Retrieval)          
+                    │                           ┌──────────────┴───────────────┐
+                    │                           ↓                              ↓
+                    │                     `insufficient`                  `sufficient`
+                    │                           ↓                              │
+                    │    ┌────────────────── Matcher ────────────────────┐     │ 
+                    ↑    │                      ↓                        │     │
+                    │    │               search_on_arxiv                 │     ↓
+                    │    │                 (MCP_Tools)                   │     │
+                    │    │           ┌──────────┴──────────┐             │     │
+                    │    │       `matched`            `unmatched`        │     │
+                    │    │(Match_Paper_Metadata)           ↓             │     │
+                    │    │           │                   retry           │     │
+                    │    │           │           Search_On_Other_Source  │     │
+                    ↑    │           │                (MCP_Tools)        │     │
+                    │    │           │       ┌─────────────┴───────┐     │     ↓
+                    │    │           │   `matched`            `unmatched`│     │
+                    │    │           │       ↓                     ↓     │     │
+                    │    │           └─ Download_Pdf            Failed   │     │ 
+                    │    └────────────────── ↓ ─────────────────── ↓ ────┘     │
+                    │                  Process_Papers      Manual_Processing   │
+                    │                        ↓                                 │
+                    ├────────────── ─ update_knowledge                         │
+                    ↑                                  ┌───────────────────────┘
+                    │                                  ↓
+                    └────── `insufficient` ─── ResearchSynthesizer
+                                                (synthesize_answer)
+                                                        ↓
+                                                  `sufficient`
+                                                        ↓
+                                                      Writer
+                                                        ↓
+                                                      END
+
 ```
