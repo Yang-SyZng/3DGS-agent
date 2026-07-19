@@ -6,3 +6,6 @@ database/
 .*
 !.chainlit/
 !.chainlit/**
+
+SAG
+TS

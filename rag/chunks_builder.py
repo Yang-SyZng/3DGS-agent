@@ -16,11 +16,7 @@ def flatten_tree(nodes: List[SectionNode]):
 
     return flatten_results
 
-def splitter_chunks(
-    nodes: List[SectionNode],
-    paragraph_separator: str = "\n\n",
-    paper_id: str = "unknown",
-) -> List[TextNode]:
+def splitter_chunks(nodes: List[SectionNode], paragraph_separator: str = "\n\n", paper_id: str = "unknown",) -> List[TextNode]:
     splitter = SentenceSplitter(
         chunk_size=setting.chunk_size,
         chunk_overlap=setting.chunk_overlap,
