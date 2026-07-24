@@ -10,19 +10,12 @@ from agents.Evaluator import RetrievalEvaluator
 from agents.Matcher import PaperMatcher
 from agents.Writer import AnswerWriter
 from config.settings import setting
-from rag.chunks_builder import flatten_tree, splitter_chunks
-from rag.embedding import Embedding
-from rag.parser.mineru_parser import mineru_parser
-from rag.parser.naive_process import (
-    build_tree,
-    classify_section_tree,
-    load_markdown,
-    parse_nodes,
-)
-from rag.vector import MilvusHybridClient
+from rag.ingestion import PaperIngestionService
 from schema.matcher_schema import MatchStatus
 
+from llama_index.llms.openai_like import OpenAILike
 from tools.llm_local_service.ollama_service import OllamaServer
+from tools.llm_fallback import FallbackLLM
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +26,31 @@ _retriever = None
 _evaluator = None
 _matcher = None
 _writer = None
-_ingestion_embedding = None
-_ingestion_vector_store = None
+_ingestion_service = None
 
 
 def _get_llm():
     global _ollama_service, _local_llm
-    if not setting.Globle_Local_Optional:
-        return None
     if _local_llm is None:
-        _ollama_service = OllamaServer(setting.Local_Model)
-        _local_llm = _ollama_service.create_ollama_llm("LLM")
+        cloud_llm = OpenAILike(
+            api_base=setting.BASE_URL,
+            api_key=setting.API_KEY,
+            model=setting.LLM_MODEL_ID,
+            is_chat_model=True,
+            is_function_calling_model=False,
+            context_window=128000,
+        )
+        if not setting.Globle_Local_Optional:
+            _local_llm = cloud_llm
+            return _local_llm
+
+        def create_local_llm():
+            global _ollama_service
+            if _ollama_service is None:
+                _ollama_service = OllamaServer(setting.Local_Model)
+            return _ollama_service.create_ollama_llm("LLM")
+
+        _local_llm = FallbackLLM(cloud_llm, create_local_llm)
     return _local_llm
 
 
@@ -82,13 +89,11 @@ def _get_writer() -> AnswerWriter:
     return _writer
 
 
-def _get_ingestion_services() -> tuple[Embedding, MilvusHybridClient]:
-    global _ingestion_embedding, _ingestion_vector_store
-    if _ingestion_embedding is None:
-        _ingestion_embedding = Embedding()
-    if _ingestion_vector_store is None:
-        _ingestion_vector_store = MilvusHybridClient()
-    return _ingestion_embedding, _ingestion_vector_store
+def _get_ingestion_service() -> PaperIngestionService:
+    global _ingestion_service
+    if _ingestion_service is None:
+        _ingestion_service = PaperIngestionService()
+    return _ingestion_service
 
 
 def _find_pdf_path(payload: Any, existing_paths: set[Path]) -> Path:
@@ -122,31 +127,14 @@ def _find_pdf_path(payload: Any, existing_paths: set[Path]) -> Path:
 
 
 def _parse_and_index_pdf(pdf_path: Path, paper_id: str, paper_title: str) -> int:
-    parse_result = mineru_parser.parse_pdf(str(pdf_path), backend="auto")
-    markdown_path = parse_result.get("markdown_path")
-    if not markdown_path:
-        raise RuntimeError("MinerU 未生成 Markdown 文件")
-
-    document = load_markdown(
-        markdown_path,
-        metadata={"paper_id": paper_id, "paper_title": paper_title},
+    result = _get_ingestion_service().ingest(
+        pdf_path=pdf_path,
+        paper_id=paper_id,
+        paper_title=paper_title,
+        backend="pipeline",
+        skip_existing=True,
     )
-    front_node, section_nodes = parse_nodes(document, paper_id=paper_id)
-    roots = classify_section_tree(build_tree(section_nodes, paper_id))
-    flat_nodes = flatten_tree(roots)
-    if front_node is not None:
-        flat_nodes.append(front_node)
-
-    chunks = splitter_chunks(flat_nodes, paper_id=paper_id)
-    if not chunks:
-        raise RuntimeError("PDF 解析完成，但没有生成可入库的文本块")
-    for chunk in chunks:
-        chunk["metadata"]["paper_title"] = paper_title
-
-    embedding, vector_store = _get_ingestion_services()
-    embedded_chunks = embedding.embed_nodes(chunks)
-    inserted_ids = vector_store.add_documents(embedded_chunks)
-    return len(inserted_ids)
+    return result.chunks_indexed
 
 # analyzer node
 async def analyzer_node(state: AgentState):
@@ -334,6 +322,8 @@ async def writer_node(state: AgentState):
         analysis=state["analysis"],
         evaluation=state["retrieval_evaluated_result"],
         retrieved_nodes=state["retrieved_nodes"],
+        external_search_results=state.get("external_search_results", []),
+        external_search_errors=state.get("external_search_errors", []),
     )
     logger.info("writer_node completed")
     return {"answer": answer}

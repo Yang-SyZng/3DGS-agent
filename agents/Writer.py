@@ -35,17 +35,46 @@ class AnswerWriter:
         analysis: QueryAnalysis,
         evaluation: RetrievalEvaluation,
         retrieved_nodes: list,
+        external_search_results: list | None = None,
+        external_search_errors: list[str] | None = None,
     ) -> str:
         contexts = self._format_contexts(
             retrieved_nodes,
             evaluation.relevant_chunk_ids,
         )
+        external_context = self._format_external_results(
+            external_search_results or [],
+            external_search_errors or [],
+        )
+        if external_context:
+            contexts = "\n\n".join(
+                part for part in (contexts, external_context) if part
+            )
         return await self.llm.apredict(
             self.prompt,
             query=query,
             analysis=json.dumps(analysis.model_dump(mode="json"), ensure_ascii=False),
             evaluation=json.dumps(evaluation.model_dump(mode="json"), ensure_ascii=False),
             contexts=contexts,
+        )
+
+    @staticmethod
+    def _format_external_results(results: list, errors: list[str]) -> str:
+        if not results and not errors:
+            return ""
+        payload = {
+            "results": [
+                item.model_dump(mode="json")
+                if hasattr(item, "model_dump")
+                else item
+                for item in results
+            ],
+            "errors": errors,
+        }
+        return "External literature search:\n" + json.dumps(
+            payload,
+            ensure_ascii=False,
+            default=str,
         )
 
     @staticmethod

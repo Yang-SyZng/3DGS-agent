@@ -65,7 +65,7 @@ builder.add_conditional_edges(
     route_external_search,
     {
         "retry": "retriever",
-        "stop": END,
+        "stop": "writer",
     },
 )
 builder.add_edge("writer", END)
